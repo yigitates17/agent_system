@@ -12,6 +12,8 @@ from core.schemas import (
 from pydantic import ValidationError
 from datetime import datetime
 from typing import Callable, Awaitable
+import json
+import re
 
 
 class WorkflowExecutor:
@@ -37,6 +39,12 @@ class WorkflowExecutor:
             # Execute step
             result = await self._execute_step(step)
             results[step.name] = result
+
+            if result.success and result.data:
+                self.agent.state.chat_history.append({
+                    "role": "user",
+                    "content": f"[Step: {step.name}] Result:\n{result.data}"
+                })
             
             # Log attempt
             attempt = Attempt(
@@ -50,7 +58,7 @@ class WorkflowExecutor:
             
             # Handle checkpoint
             if step.checkpoint and self.checkpoint_handler:
-                checkpoint_response = await self.checkpoint_handler(step.name, result)
+                checkpoint_response = await self.checkpoint_handler.handle(step.name, result)
                 attempt.checkpoint_response = checkpoint_response
                 
                 next_index = self._handle_checkpoint(
@@ -69,7 +77,56 @@ class WorkflowExecutor:
         
         return results
 
+    def _extract_json(self, text: str) -> dict | None:
+        """Extract JSON from LLM response, handling markdown code blocks."""
+        if not text:
+            return None
+        
+        # Remove markdown code blocks
+        pattern = r'```(?:json)?\s*([\s\S]*?)\s*```'
+        match = re.search(pattern, text)
+        
+        if match:
+            text = match.group(1)
+        
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            return None
+
+    async def _execute_llm_step(self, step) -> ToolResult:
+        """Step where LLM thinks and responds, no tool."""
+        messages = self.agent.build_messages()
+        messages.append({
+            "role": "user",
+            "content": step.prompt,
+        })
+        
+        response = await self.agent.provider.call(
+            messages=messages,
+            tools=None,
+            response_format="json",  # Ask for JSON
+        )
+        
+        if response.content:
+            self.agent.add_assistant_message(response.content)
+
+        parsed = self._extract_json(response.content)
+
+        self.agent.state.outputs[step.name] = parsed or {"response": response.content}
+        
+        return ToolResult(
+            success=True,
+            tool_name="llm_response",
+            input={"prompt": step.prompt},
+            data=parsed or {"response": response.content},
+        )
+
     async def _execute_step(self, step) -> ToolResult:
+
+        if step.tool_name is None:
+            return await self._execute_llm_step(step)
+        
         tool = self.agent.get_tool(step.tool_name)
         
         if not tool:

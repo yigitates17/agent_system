@@ -69,10 +69,10 @@ class ExecutionContext(BaseModel):
 
 class WorkflowStep(BaseModel):
     name: str
-    tool_name: str
-    prompt: str  # instruction for LLM on how to use the tool
-    checkpoint: bool = False  # pause for user approval?
-    input_override: dict[str, Any] | None = None  # optional fixed inputs
+    tool_name: str | None = None  # Allow None for LLM-only steps
+    prompt: str
+    checkpoint: bool = False
+    input_override: dict[str, Any] | None = None
 
 
 class WorkflowDefinition(BaseModel):
