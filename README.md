@@ -1,14 +1,17 @@
 # Corvus
 
-A modular agent framework built from scratch in Python. No LangChain, no abstractions you don't control — just clean, understandable code.
+A modular agent framework built from scratch as a learning project in software architecture and system design.
 
-## Why Build This?
+## What This Is
 
-Most agent frameworks are black boxes. Corvus exists to:
+This isn't another LangChain wrapper. It's a ground-up implementation to understand how agent systems actually work — from base abstractions to production-ready custom agents.
 
-- **Understand every piece** — no magic, no hidden complexity
-- **Stay minimal** — add what you need, nothing more
-- **Learn by building** — system design through implementation
+**Why build from scratch?**
+
+- Data scientist learning backend/system design
+- Understand every component, not just glue libraries together
+- Build portfolio piece that demonstrates architectural thinking
+- Create foundation for real corporate workflow automation
 
 ## Architecture
 ```
